@@ -8,7 +8,7 @@ import 'package:task_manager/models/subtask.dart';
 import 'package:task_manager/view_models/task_list_view_model.dart';
 import 'package:task_manager/services/database_service.dart';
 import 'package:task_manager/services/notification_service.dart';
-import 'package:task_manager/views/home_screen.dart';
+import 'package:task_manager/views/HomeScreen.dart';
 
 void main() async {
   // Initialize Flutter binding

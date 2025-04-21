@@ -3,13 +3,18 @@ import 'package:provider/provider.dart';
 // import 'package:task_manager/models/task.dart';
 import 'package:task_manager/services/database_service.dart';
 import 'package:task_manager/view_models/task_list_view_model.dart';
-import 'package:task_manager/views/add_edit_task_screen.dart';
-import 'package:task_manager/views/task_detail_screen.dart';
+import 'package:task_manager/views/AddEditTaskScreen.dart';
+import 'package:task_manager/views/TaskDetailScreen.dart';
 import 'package:task_manager/views/widgets/task_list_item.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,27 +24,30 @@ class HomeScreen extends StatelessWidget {
           PopupMenuButton<TaskSortOrder>(
             icon: const Icon(Icons.sort),
             onSelected: (order) {
-              Provider.of<TaskListViewModel>(context, listen: false)
-                  .setSortOrder(order);
+              Provider.of<TaskListViewModel>(
+                context,
+                listen: false,
+              ).setSortOrder(order);
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: TaskSortOrder.dateAsc,
-                child: Text('Date (Oldest first)'),
-              ),
-              const PopupMenuItem(
-                value: TaskSortOrder.dateDesc,
-                child: Text('Date (Newest first)'),
-              ),
-              const PopupMenuItem(
-                value: TaskSortOrder.priorityDesc,
-                child: Text('Priority (High to Low)'),
-              ),
-              const PopupMenuItem(
-                value: TaskSortOrder.priorityAsc,
-                child: Text('Priority (Low to High)'),
-              ),
-            ],
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: TaskSortOrder.dateAsc,
+                    child: Text('Date (Oldest first)'),
+                  ),
+                  const PopupMenuItem(
+                    value: TaskSortOrder.dateDesc,
+                    child: Text('Date (Newest first)'),
+                  ),
+                  const PopupMenuItem(
+                    value: TaskSortOrder.priorityDesc,
+                    child: Text('Priority (High to Low)'),
+                  ),
+                  const PopupMenuItem(
+                    value: TaskSortOrder.priorityAsc,
+                    child: Text('Priority (Low to High)'),
+                  ),
+                ],
           ),
         ],
       ),
@@ -47,7 +55,7 @@ class HomeScreen extends StatelessWidget {
       body: Consumer<TaskListViewModel>(
         builder: (context, viewModel, child) {
           final tasks = viewModel.tasks;
-          
+
           if (tasks.isEmpty) {
             return Center(
               child: Column(
@@ -68,7 +76,7 @@ class HomeScreen extends StatelessWidget {
               ),
             );
           }
-          
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: tasks.length,
@@ -80,29 +88,29 @@ class HomeScreen extends StatelessWidget {
                   color: Colors.red,
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 16),
-                  child: const Icon(
-                    Icons.delete,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
                 direction: DismissDirection.endToStart,
                 confirmDismiss: (direction) async {
                   return await showDialog(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete Task'),
-                      content: const Text('Are you sure you want to delete this task?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('CANCEL'),
+                    builder:
+                        (context) => AlertDialog(
+                          title: const Text('Delete Task'),
+                          content: const Text(
+                            'Are you sure you want to delete this task?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('CANCEL'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('DELETE'),
+                            ),
+                          ],
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('DELETE'),
-                        ),
-                      ],
-                    ),
                   );
                 },
                 onDismissed: (direction) {
@@ -116,7 +124,9 @@ class HomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => TaskDetailScreen(taskId: task.id),
                       ),
-                    );
+                    ).then((value) {
+                      setState(() {});
+                    });
                   },
                   onToggleCompletion: (isCompleted) {
                     viewModel.toggleTaskCompletion(task.id, isCompleted);
@@ -138,24 +148,19 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildDrawer(BuildContext context) {
     final viewModel = Provider.of<TaskListViewModel>(context);
-    
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor,
-            ),
+            decoration: BoxDecoration(color: Theme.of(context).primaryColor),
             child: const Text(
               'Task Manager',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 24),
             ),
           ),
           ListTile(
