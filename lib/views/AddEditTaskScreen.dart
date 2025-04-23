@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:task_manager/models/task.dart';
+import 'package:task_manager/services/database_service.dart';
+import 'package:task_manager/services/notification_service.dart';
 import 'package:task_manager/view_models/task_list_view_model.dart';
-import 'package:task_manager/view_models/task_detail_view_model.dart';
 import 'package:task_manager/views/widgets/priority_selector.dart';
 
 class AddEditTaskScreen extends StatefulWidget {
   final String? taskId;
-  
-  const AddEditTaskScreen({
-    Key? key,
-    this.taskId,
-  }) : super(key: key);
+
+  const AddEditTaskScreen({Key? key, this.taskId}) : super(key: key);
 
   @override
   State<AddEditTaskScreen> createState() => _AddEditTaskScreenState();
@@ -21,34 +19,35 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   Priority _selectedPriority = Priority.medium;
   DateTime? _selectedReminderDateTime;
   final List<TextEditingController> _subtaskControllers = [];
-  
-  late TaskDetailViewModel? _taskDetailViewModel;
+
+  late TaskListViewModel _taskListViewModel;
   
   @override
   void initState() {
     super.initState();
-    
+
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
     _selectedTime = TimeOfDay.fromDateTime(now.add(const Duration(hours: 1)));
-    
+
     // Initialize with one empty subtask
     _subtaskControllers.add(TextEditingController());
-    
-    // If editing an existing task, load its data
-    if (widget.taskId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    // If editing an existing task, load its data after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _taskListViewModel = Provider.of<TaskListViewModel>(context, listen: false);
+      if (widget.taskId != null) {
         _loadTaskData();
-      });
-    }
+      }
+    });
   }
-  
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -58,13 +57,12 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     }
     super.dispose();
   }
-  
+
   void _loadTaskData() {
     if (widget.taskId == null) return;
-    
-    _taskDetailViewModel = Provider.of<TaskDetailViewModel>(context, listen: false);
-    final task = _taskDetailViewModel!.task;
-    
+
+    final task = _taskListViewModel.getTaskById(widget.taskId!);
+
     if (task != null) {
       _titleController.text = task.title;
       _descriptionController.text = task.description;
@@ -76,28 +74,28 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       _selectedTime = TimeOfDay.fromDateTime(task.dueDate);
       _selectedPriority = task.priority;
       _selectedReminderDateTime = task.reminderTime;
-      
+
       // Clear the default empty subtask controller
       for (final controller in _subtaskControllers) {
         controller.dispose();
       }
       _subtaskControllers.clear();
-      
+
       // Add controllers for existing subtasks
       for (final subtask in task.subtasks) {
         final controller = TextEditingController(text: subtask.title);
         _subtaskControllers.add(controller);
       }
-      
+
       // Add one empty controller if there are no subtasks
       if (_subtaskControllers.isEmpty) {
         _subtaskControllers.add(TextEditingController());
       }
-      
+
       setState(() {});
     }
   }
-  
+
   Future<void> _selectDate(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
@@ -105,26 +103,27 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
     );
-    
+
     if (picked != null) {
       setState(() {
         _selectedDate = picked;
       });
     }
   }
+
   Future<void> _selectTime(BuildContext context) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
     );
-    
+
     if (picked != null) {
       setState(() {
         _selectedTime = picked;
       });
     }
   }
-  
+
   Future<void> _selectReminder(BuildContext context) async {
     // First select date
     final pickedDate = await showDatePicker(
@@ -133,19 +132,20 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: _selectedDate,
     );
-    
+
     if (pickedDate == null) return;
-    
+
     // Then select time
     final pickedTime = await showTimePicker(
       context: context,
-      initialTime: _selectedReminderDateTime != null
-          ? TimeOfDay.fromDateTime(_selectedReminderDateTime!)
-          : TimeOfDay.now(),
+      initialTime:
+          _selectedReminderDateTime != null
+              ? TimeOfDay.fromDateTime(_selectedReminderDateTime!)
+              : TimeOfDay.now(),
     );
-    
+
     if (pickedTime == null) return;
-    
+
     setState(() {
       _selectedReminderDateTime = DateTime(
         pickedDate.year,
@@ -156,23 +156,23 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       );
     });
   }
-  
+
   void _addEmptySubtask() {
     setState(() {
       _subtaskControllers.add(TextEditingController());
     });
   }
-  
+
   void _removeSubtask(int index) {
     setState(() {
       _subtaskControllers[index].dispose();
       _subtaskControllers.removeAt(index);
     });
   }
-  
+
   void _saveTask() {
     if (!_formKey.currentState!.validate()) return;
-    
+
     // Combine date and time
     final dueDate = DateTime(
       _selectedDate.year,
@@ -181,16 +181,16 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       _selectedTime.hour,
       _selectedTime.minute,
     );
-    
+
     // Filter out empty subtasks
-    final subtaskTitles = _subtaskControllers
-        .map((controller) => controller.text.trim())
-        .where((title) => title.isNotEmpty)
-        .toList();
+    final subtaskTitles =
+        _subtaskControllers
+            .map((controller) => controller.text.trim())
+            .toList(); // Allow empty subtasks to be saved
     
     if (widget.taskId == null) {
       // Create new task
-      Provider.of<TaskListViewModel>(context, listen: false).addTask(
+      _taskListViewModel.addTask(
         _titleController.text,
         _descriptionController.text,
         dueDate,
@@ -200,18 +200,17 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       );
     } else {
       // Update existing task
-      _taskDetailViewModel!.updateTask(
-        title: _titleController.text,
-        description: _descriptionController.text,
-        dueDate: dueDate,
-        priority: _selectedPriority,
-        reminderTime: _selectedReminderDateTime,
+      _taskListViewModel.updateTask(
+        widget.taskId!,
+        _titleController.text,
+        _descriptionController.text,
+        dueDate,
+        _selectedPriority,
+        subtaskTitles,
+        _selectedReminderDateTime,
       );
-      
-      // Handle subtasks separately since we need to preserve IDs
-      // This would require additional logic in the view model
     }
-    
+
     Navigator.pop(context);
   }
 
@@ -298,16 +297,17 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 decoration: InputDecoration(
                   labelText: 'Reminder',
                   border: const OutlineInputBorder(),
-                  suffixIcon: _selectedReminderDateTime != null
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() {
-                              _selectedReminderDateTime = null;
-                            });
-                          },
-                        )
-                      : null,
+                  suffixIcon:
+                      _selectedReminderDateTime != null
+                          ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                _selectedReminderDateTime = null;
+                              });
+                            },
+                          )
+                          : null,
                 ),
                 child: Text(
                   _selectedReminderDateTime != null
@@ -346,7 +346,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       ),
     );
   }
-  
+
   List<Widget> _buildSubtaskFields() {
     return List.generate(
       _subtaskControllers.length,

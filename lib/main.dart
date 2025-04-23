@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:task_manager/models/task.dart';
 import 'package:task_manager/models/subtask.dart';
+import 'package:task_manager/view_models/task_detail_view_model.dart';
 import 'package:task_manager/view_models/task_list_view_model.dart';
 import 'package:task_manager/services/database_service.dart';
 import 'package:task_manager/services/notification_service.dart';
@@ -37,6 +38,14 @@ void main() async {
             notificationService: notificationService,
           ),
         ),
+
+        // ChangeNotifierProvider(
+        //   create: (_) => TaskDetailViewModel(
+        //     databaseService: databaseService,
+        //     notificationService: notificationService, taskId: '',
+        //   ),
+        // ),
+        
       ],
       child: const MyApp(),
     ),

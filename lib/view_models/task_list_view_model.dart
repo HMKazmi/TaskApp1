@@ -94,7 +94,44 @@ class TaskListViewModel extends ChangeNotifier {
     _loadTasks();
   }
   
-  Future<void> updateTask(Task task) async {
+  // Overloaded updateTask method that accepts individual parameters
+  Future<void> updateTask(
+    String taskId,
+    String title,
+    String description,
+    DateTime dueDate,
+    Priority priority,
+    List<String> subtaskTitles,
+    DateTime? reminderTime,
+  ) async {
+    // Get existing task
+    Task? existingTask = getTaskById(taskId);
+    if (existingTask == null) return;
+
+    // Update basic details
+    existingTask.title = title;
+    existingTask.description = description;
+    existingTask.dueDate = dueDate;
+    existingTask.priority = priority;
+    existingTask.reminderTime = reminderTime;
+
+    // Handle subtasks (recreate them from titles)
+    existingTask.subtasks.clear();
+    for (final subtaskTitle in subtaskTitles) {
+      if (subtaskTitle.isNotEmpty) {
+        existingTask.subtasks.add(Subtask(
+          id: _uuid.v4(),
+          title: subtaskTitle,
+        ));
+      }
+    }
+
+    // Use the existing updateTask method
+    await updateTaskObject(existingTask);
+  }
+  
+  // Renamed the original updateTask method to updateTaskObject
+  Future<void> updateTaskObject(Task task) async {
     await databaseService.updateTask(task);
     
     // Update or cancel notification
@@ -105,7 +142,7 @@ class TaskListViewModel extends ChangeNotifier {
     }
     
     _loadTasks();
-  }
+  } 
   
   Future<void> deleteTask(String taskId) async {
     await databaseService.deleteTask(taskId);
@@ -127,5 +164,14 @@ class TaskListViewModel extends ChangeNotifier {
   Future<void> toggleSubtaskCompletion(String taskId, String subtaskId, bool isCompleted) async {
     await databaseService.toggleSubtaskCompletion(taskId, subtaskId, isCompleted);
     _loadTasks();
+  }
+  
+  // Add a method to get a task by ID
+  Task? getTaskById(String taskId) {
+    try {
+      return _tasks.firstWhere((task) => task.id == taskId);
+    } catch (e) {
+      return null; // Return null if task not found
+    }
   }
 }
